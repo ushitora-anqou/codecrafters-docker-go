@@ -26,4 +26,7 @@ func main() {
 	}
 	io.Copy(os.Stdout, stdout)
 	io.Copy(os.Stderr, stderr)
+
+	cmd.Wait()
+	os.Exit(cmd.ProcessState.ExitCode())
 }
