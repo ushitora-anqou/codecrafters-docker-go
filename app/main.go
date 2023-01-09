@@ -62,6 +62,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Unshare
+	if err := syscall.Unshare(syscall.CLONE_NEWPID); err != nil {
+		log.Fatal(err)
+	}
+
 	cmd := exec.Command(command, args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
