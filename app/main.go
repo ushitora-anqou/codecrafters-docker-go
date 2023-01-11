@@ -63,16 +63,25 @@ func easyGet(url, token string) ([]byte, error) {
 	return body, nil
 }
 
+func debugPrintf(f string, args ...interface{}) {
+	//fmt.Printf(f+"\n", args...)
+}
+
 func fetchImage(image, outdir string) error {
 	if !strings.Contains(image, "/") {
 		image = "library/" + image
 	}
 	colonIndex := strings.LastIndex(image, ":")
 	var imageName, imageRef string
-	if colonIndex != -1 {
+	if colonIndex == -1 {
+		imageName = image
+		imageRef = "latest"
+	} else {
 		imageName = image[0:colonIndex]
 		imageRef = image[colonIndex+1:]
 	}
+
+	debugPrintf("Fetch: %s, %s", imageName, imageRef)
 
 	// Get token
 	authBody, err := easyGet("https://auth.docker.io/token?service=registry.docker.io&scope=repository:"+imageName+":pull", "")
@@ -84,6 +93,7 @@ func fetchImage(image, outdir string) error {
 		return err
 	}
 	token := authJson["token"].(string)
+	debugPrintf("Get token done")
 
 	// Get manifest
 	maniBody, err := easyGet("https://registry.hub.docker.com/v2/"+imageName+"/manifests/"+imageRef, token)
@@ -99,15 +109,16 @@ func fetchImage(image, outdir string) error {
 		blobSum := l.(map[string]interface{})["blobSum"].(string)
 		fsLayers = append(fsLayers, blobSum)
 	}
+	debugPrintf("Get manifest done")
 
 	// Get blob under tempdir
 	tempdir, err := os.MkdirTemp("", "codecrafters-docker-blobs-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempdir)
+	//defer os.RemoveAll(tempdir)
 	for i, blobSum := range fsLayers {
-		blobBody, err := easyGet("https://registry.hub.docker.com/v2/library/ubuntu/blobs/"+blobSum, token)
+		blobBody, err := easyGet("https://registry.hub.docker.com/v2/"+imageName+"/blobs/"+blobSum, token)
 		if err != nil {
 			return err
 		}
@@ -121,6 +132,7 @@ func fetchImage(image, outdir string) error {
 		}
 		w.Close()
 	}
+	debugPrintf("Get blobs done: %s", tempdir)
 
 	// Extract blobs under outdir
 	for i := len(fsLayers) - 1; i >= 0; i-- {
@@ -129,6 +141,7 @@ func fetchImage(image, outdir string) error {
 			return err
 		}
 	}
+	debugPrintf("Extract blobs done")
 
 	return nil
 }
